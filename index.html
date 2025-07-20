@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vehicle Tracking Simulation</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        color: #333;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: 20px;
+        color: white;
+      }
+
+      .header h1 {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .header p {
+        font-size: 1.1rem;
+        opacity: 0.9;
+      }
+
+      .map-container {
+        background: white;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        margin-bottom: 20px;
+      }
+
+      #map {
+        height: 500px;
+        width: 100%;
+      }
+
+      .controls-panel {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        margin-bottom: 20px;
+      }
+
+      .control-buttons {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+
+      .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+      }
+
+      .btn-secondary {
+        background: #f8f9fa;
+        color: #495057;
+        border: 2px solid #dee2e6;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+      }
+
+      .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+      }
+
+      .info-card {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+        border: 2px solid #e9ecef;
+      }
+
+      .info-card h3 {
+        font-size: 0.9rem;
+        color: #6c757d;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      .info-card .value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #495057;
+      }
+
+      .info-card .unit {
+        font-size: 0.9rem;
+        color: #6c757d;
+        margin-left: 5px;
+      }
+
+      .speed-display {
+        color: #28a745;
+      }
+
+      .progress-container {
+        margin-top: 20px;
+      }
+
+      .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: #e9ecef;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 10px;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #28a745, #20c997);
+        width: 0%;
+        transition: width 0.3s ease;
+        border-radius: 4px;
+      }
+
+      .status-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+        animation: pulse 2s infinite;
+      }
+
+      .status-active {
+        background: #28a745;
+      }
+
+      .status-paused {
+        background: #ffc107;
+      }
+
+      .status-completed {
+        background: #dc3545;
+      }
+
+      @keyframes pulse {
+        0% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+
+      .mobile-controls {
+        display: none;
+      }
+
+      @media (max-width: 768px) {
+        .container {
+          padding: 10px;
+        }
+
+        #map {
+          height: 350px;
+        }
+
+        .header h1 {
+          font-size: 2rem;
+        }
+
+        .mobile-controls {
+          display: flex;
+          gap: 10px;
+          margin-top: 15px;
+        }
+
+        .mobile-btn {
+          flex: 1;
+          padding: 15px;
+          font-size: 1.2rem;
+        }
+      }
+
+      .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.9);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        flex-direction: column;
+      }
+
+      .spinner {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #667eea;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+      <p>Loading vehicle tracking simulation...</p>
+    </div>
+
+    <div class="container">
+      <div class="header">
+        <h1><i class="fas fa-car"></i> Vehicle Tracking Simulation</h1>
+        <p>Real-time vehicle movement simulation on an interactive map</p>
+      </div>
+
+      <div class="map-container">
+        <div id="map"></div>
+      </div>
+
+      <div class="controls-panel">
+        <div class="control-buttons">
+          <button class="btn btn-primary" id="playBtn">
+            <i class="fas fa-play"></i> Start Simulation
+          </button>
+          <button class="btn btn-secondary" id="pauseBtn" disabled>
+            <i class="fas fa-pause"></i> Pause
+          </button>
+          <button class="btn btn-secondary" id="resetBtn">
+            <i class="fas fa-redo"></i> Reset
+          </button>
+          <button class="btn btn-secondary" id="speedBtn">
+            <i class="fas fa-tachometer-alt"></i> Speed: 1x
+          </button>
+        </div>
+
+        <div class="progress-container">
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            "
+          >
+            <span>
+              <span
+                class="status-indicator status-paused"
+                id="statusIndicator"
+              ></span>
+              <span id="statusText">Ready to start</span>
+            </span>
+            <span id="progressText">0% Complete</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+        </div>
+
+        <div class="info-grid">
+          <div class="info-card">
+            <h3>Current Position</h3>
+            <div class="value" id="currentPosition">--</div>
+          </div>
+          <div class="info-card">
+            <h3>Current Speed</h3>
+            <div class="value speed-display" id="currentSpeed">--</div>
+            <span class="unit">km/h</span>
+          </div>
+          <div class="info-card">
+            <h3>Elapsed Time</h3>
+            <div class="value" id="elapsedTime">00:00</div>
+          </div>
+          <div class="info-card">
+            <h3>Current Time</h3>
+            <div class="value" id="currentTime">--</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mobile-controls">
+        <button class="btn btn-primary mobile-btn" id="mobilePlayBtn">
+          <i class="fas fa-play"></i>
+        </button>
+        <button class="btn btn-secondary mobile-btn" id="mobilePauseBtn">
+          <i class="fas fa-pause"></i>
+        </button>
+        <button class="btn btn-secondary mobile-btn" id="mobileResetBtn">
+          <i class="fas fa-redo"></i>
+        </button>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+      class VehicleTracker {
+        constructor() {
+          this.map = null;
+          this.vehicleMarker = null;
+          this.routePolyline = null;
+          this.routePoints = [];
+          this.currentPointIndex = 0;
+          this.animationInterval = null;
+          this.isRunning = false;
+          this.startTime = null;
+          this.elapsedTime = 0;
+          this.speedMultiplier = 1;
+          this.lastTimestamp = null;
+
+          this.initializeMap();
+          this.loadRouteData();
+          this.bindEvents();
+        }
+
+        initializeMap() {
+          // Initialize map centered on Hyderabad, India (from the dummy data)
+          this.map = L.map("map").setView([17.385, 78.487], 13);
+
+          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: "© OpenStreetMap contributors",
+            maxZoom: 18,
+          }).addTo(this.map);
+
+          // Add vehicle marker (initially hidden)
+          this.vehicleMarker = L.marker([0, 0], {
+            icon: L.divIcon({
+              html: '<div style="background: #ff4757; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.3);"></div>',
+              className: "vehicle-marker",
+              iconSize: [20, 20],
+              iconAnchor: [10, 10],
+            }),
+          })
+            .addTo(this.map)
+            .bindPopup("Vehicle Position");
+
+          // Initialize empty route polyline
+          this.routePolyline = L.polyline([], {
+            color: "#667eea",
+            weight: 4,
+            opacity: 0.8,
+            lineCap: "round",
+            lineJoin: "round",
+          }).addTo(this.map);
+        }
+
+        async loadRouteData() {
+          try {
+            const response = await fetch("dummy-route.json");
+            if (!response.ok) {
+              throw new Error("Failed to load route data");
+            }
+            this.routePoints = await response.json();
+
+            if (this.routePoints.length > 0) {
+              // Set map view to show the entire route
+              const bounds = L.latLngBounds(
+                this.routePoints.map((point) => [
+                  point.latitude,
+                  point.longitude,
+                ])
+              );
+              this.map.fitBounds(bounds, { padding: [50, 50] });
+
+              // Update UI with total distance and duration
+              this.updateRouteInfo();
+              document.getElementById("loadingOverlay").style.display = "none";
+            } else {
+              throw new Error("No route data found");
+            }
+          } catch (error) {
+            console.error("Error loading route data:", error);
+            document.getElementById("loadingOverlay").innerHTML = `
+                        <div style="text-align: center; color: #dc3545;">
+                            <i class="fas fa-exclamation-triangle" style="font-size: 48px;"></i>
+                            <h3>Error Loading Route Data</h3>
+                            <p>${error.message}</p>
+                            <button onclick="location.reload()" class="btn btn-primary">
+                                <i class="fas fa-redo"></i> Try Again
+                            </button>
+                        </div>
+                    `;
+          }
+        }
+
+        updateRouteInfo() {
+          const totalDistance = this.calculateTotalDistance();
+          const totalDuration = this.calculateTotalDuration();
+
+          console.log(
+            `Route Info - Distance: ${totalDistance.toFixed(
+              2
+            )} km, Duration: ${totalDuration.toFixed(0)} seconds`
+          );
+        }
+
+        calculateTotalDistance() {
+          let distance = 0;
+          for (let i = 1; i < this.routePoints.length; i++) {
+            distance += this.calculateDistance(
+              this.routePoints[i - 1].latitude,
+              this.routePoints[i - 1].longitude,
+              this.routePoints[i].latitude,
+              this.routePoints[i].longitude
+            );
+          }
+          return distance;
+        }
+
+        calculateDistance(lat1, lon1, lat2, lon2) {
+          const R = 6371; // Earth's radius in km
+          const dLat = ((lat2 - lat1) * Math.PI) / 180;
+          const dLon = ((lon2 - lon1) * Math.PI) / 180;
+          const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos((lat1 * Math.PI) / 180) *
+              Math.cos((lat2 * Math.PI) / 180) *
+              Math.sin(dLon / 2) *
+              Math.sin(dLon / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          return R * c;
+        }
+
+        calculateTotalDuration() {
+          if (this.routePoints.length < 2) return 0;
+          const firstTime = new Date(this.routePoints[0].timestamp);
+          const lastTime = new Date(
+            this.routePoints[this.routePoints.length - 1].timestamp
+          );
+          return (lastTime - firstTime) / 1000; // in seconds
+        }
+
+        startSimulation() {
+          if (this.isRunning) return;
+
+          this.isRunning = true;
+          this.startTime = Date.now() - this.elapsedTime;
+          this.lastTimestamp = Date.now();
+
+          this.updateStatus("active", "Simulation running");
+          this.updateButtons();
+
+          this.animationInterval = setInterval(() => {
+            this.updateVehiclePosition();
+          }, 100); // Update every 100ms for smooth animation
+        }
+
+        pauseSimulation() {
+          if (!this.isRunning) return;
+
+          this.isRunning = false;
+          clearInterval(this.animationInterval);
+          this.elapsedTime = Date.now() - this.startTime;
+
+          this.updateStatus("paused", "Simulation paused");
+          this.updateButtons();
+        }
+
+        resetSimulation() {
+          this.pauseSimulation();
+          this.currentPointIndex = 0;
+          this.elapsedTime = 0;
+
+          // Reset vehicle marker position
+          if (this.routePoints.length > 0) {
+            const firstPoint = this.routePoints[0];
+            this.vehicleMarker.setLatLng([
+              firstPoint.latitude,
+              firstPoint.longitude,
+            ]);
+            this.routePolyline.setLatLngs([]);
+          }
+
+          this.updateStatus("paused", "Ready to start");
+          this.updateButtons();
+          this.updateProgress(0);
+          this.updateInfoDisplay();
+        }
+
+        updateVehiclePosition() {
+          if (this.currentPointIndex >= this.routePoints.length - 1) {
+            this.pauseSimulation();
+            this.updateStatus("completed", "Route completed");
+            return;
+          }
+
+          const currentTime = Date.now();
+          const deltaTime =
+            (currentTime - this.lastTimestamp) * this.speedMultiplier;
+          this.lastTimestamp = currentTime;
+
+          const totalDuration = this.calculateTotalDuration() * 1000;
+          const elapsedSimulationTime =
+            (currentTime - this.startTime) * this.speedMultiplier;
+          const progress = Math.min(elapsedSimulationTime / totalDuration, 1);
+
+          const targetIndex = Math.floor(
+            progress * (this.routePoints.length - 1)
+          );
+
+          if (targetIndex > this.currentPointIndex) {
+            this.currentPointIndex = targetIndex;
+
+            const currentPoint = this.routePoints[this.currentPointIndex];
+            this.vehicleMarker.setLatLng([
+              currentPoint.latitude,
+              currentPoint.longitude,
+            ]);
+
+            // Update route polyline
+            const visiblePoints = this.routePoints.slice(
+              0,
+              this.currentPointIndex + 1
+            );
+            this.routePolyline.setLatLngs(
+              visiblePoints.map((p) => [p.latitude, p.longitude])
+            );
+
+            // Update info display
+            this.updateInfoDisplay();
+            this.updateProgress(progress * 100);
+          }
+        }
+
+        updateInfoDisplay() {
+          if (this.currentPointIndex < this.routePoints.length) {
+            const currentPoint = this.routePoints[this.currentPointIndex];
+
+            // Update position
+            document.getElementById(
+              "currentPosition"
+            ).textContent = `${currentPoint.latitude.toFixed(
+              6
+            )}, ${currentPoint.longitude.toFixed(6)}`;
+
+            // Update current time
+            document.getElementById("currentTime").textContent = new Date(
+              currentPoint.timestamp
+            ).toLocaleTimeString();
+
+            // Calculate and update speed
+            if (this.currentPointIndex > 0) {
+              const prevPoint = this.routePoints[this.currentPointIndex - 1];
+              const distance = this.calculateDistance(
+                prevPoint.latitude,
+                prevPoint.longitude,
+                currentPoint.latitude,
+                currentPoint.longitude
+              );
+              const timeDiff =
+                (new Date(currentPoint.timestamp) -
+                  new Date(prevPoint.timestamp)) /
+                1000;
+              const speed = timeDiff > 0 ? (distance / timeDiff) * 3.6 : 0; // km/h
+              document.getElementById("currentSpeed").textContent =
+                speed.toFixed(1);
+            }
+
+            // Update elapsed time
+            const elapsedSeconds = this.isRunning
+              ? Math.floor((Date.now() - this.startTime) / 1000)
+              : Math.floor(this.elapsedTime / 1000);
+            const minutes = Math.floor(elapsedSeconds / 60);
+            const seconds = elapsedSeconds % 60;
+            document.getElementById("elapsedTime").textContent = `${minutes
+              .toString()
+              .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+          }
+        }
+
+        updateProgress(percentage) {
+          document.getElementById(
+            "progressFill"
+          ).style.width = `${percentage}%`;
+          document.getElementById("progressText").textContent = `${Math.round(
+            percentage
+          )}% Complete`;
+        }
+
+        updateStatus(status, text) {
+          const indicator = document.getElementById("statusIndicator");
+          const statusText = document.getElementById("statusText");
+
+          indicator.className = `status-indicator status-${status}`;
+          statusText.textContent = text;
+        }
+
+        updateButtons() {
+          const playBtn = document.getElementById("playBtn");
+          const pauseBtn = document.getElementById("pauseBtn");
+          const resetBtn = document.getElementById("resetBtn");
+          const mobilePlayBtn = document.getElementById("mobilePlayBtn");
+          const mobilePauseBtn = document.getElementById("mobilePauseBtn");
+
+          if (this.isRunning) {
+            playBtn.disabled = true;
+            pauseBtn.disabled = false;
+            mobilePlayBtn.disabled = true;
+            mobilePauseBtn.disabled = false;
+          } else {
+            playBtn.disabled =
+              this.currentPointIndex >= this.routePoints.length - 1;
+            pauseBtn.disabled = true;
+            mobilePlayBtn.disabled =
+              this.currentPointIndex >= this.routePoints.length - 1;
+            mobilePauseBtn.disabled = true;
+          }
+
+          resetBtn.disabled =
+            this.currentPointIndex === 0 && this.elapsedTime === 0;
+        }
+
+        changeSpeed() {
+          const speeds = [1, 2, 5, 10];
+          const currentIndex = speeds.indexOf(this.speedMultiplier);
+          const nextIndex = (currentIndex + 1) % speeds.length;
+          this.speedMultiplier = speeds[nextIndex];
+
+          document.getElementById(
+            "speedBtn"
+          ).innerHTML = `<i class="fas fa-tachometer-alt"></i> Speed: ${this.speedMultiplier}x`;
+
+          if (this.isRunning) {
+            this.lastTimestamp = Date.now();
+          }
+        }
+
+        bindEvents() {
+          document
+            .getElementById("playBtn")
+            .addEventListener("click", () => this.startSimulation());
+          document
+            .getElementById("pauseBtn")
+            .addEventListener("click", () => this.pauseSimulation());
+          document
+            .getElementById("resetBtn")
+            .addEventListener("click", () => this.resetSimulation());
+          document
+            .getElementById("speedBtn")
+            .addEventListener("click", () => this.changeSpeed());
+
+          // Mobile controls
+          document
+            .getElementById("mobilePlayBtn")
+            .addEventListener("click", () => this.startSimulation());
+          document
+            .getElementById("mobilePauseBtn")
+            .addEventListener("click", () => this.pauseSimulation());
+          document
+            .getElementById("mobileResetBtn")
+            .addEventListener("click", () => this.resetSimulation());
+        }
+      }
+
+      // Initialize the application when DOM is loaded
+      document.addEventListener("DOMContentLoaded", () => {
+        new VehicleTracker();
+      });
+    </script>
+  </body>
+</html>
